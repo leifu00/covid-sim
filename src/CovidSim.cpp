@@ -134,6 +134,10 @@ int IncubRecoverySweep_TimeAcc = 0;
 int DigitalContactTracingSweep_TimeAcc = 0;
 int TreatSweep_TimeAcc = 0;
 
+int InfectSweep_Count = 0;
+clock_t InfectSweep_MaxTime = 0;
+clock_t InfectSweep_MinTime = LONG_MAX;
+
 
 
 int main(int argc, char* argv[])
@@ -430,6 +434,11 @@ int main(int argc, char* argv[])
 			fprintf(stderr, "IncubRecoverySweep occupied %lf seconds\n", ((double)IncubRecoverySweep_TimeAcc) / CLOCKS_PER_SEC);
 			fprintf(stderr, "DigitalContactTracingSweep occupied %lf seconds\n", ((double)DigitalContactTracingSweep_TimeAcc) / CLOCKS_PER_SEC);
 			fprintf(stderr, "TreatSweep occupied %lf seconds\n", ((double)TreatSweep_TimeAcc) / CLOCKS_PER_SEC);
+
+			fprintf(stderr, "InfectSweep is called %d times\n", InfectSweep_Count);
+			fprintf(stderr, "Average running time: %lf seconds\n", ((double)InfectSweep_TimeAcc / (InfectSweep_Count * CLOCKS_PER_SEC)));
+			fprintf(stderr, "Minimum running time: %lf seconds\n", ((double)InfectSweep_MinTime / CLOCKS_PER_SEC));
+			fprintf(stderr, "Maximum running time: %lf seconds\n", ((double)InfectSweep_MaxTime / CLOCKS_PER_SEC));
 
 			fprintf(stderr, "Model finished\n");
 		}
@@ -3116,8 +3125,14 @@ int RunModel(int run, std::string const& snapshot_save_file, std::string const& 
 					}
 					auto c1 = clock();
 					InfectSweep(t, run);  // loops over all infectious people and decides which susceptible people to infect (at household, place and spatial level), and adds them to queue. Then changes each person's various characteristics using DoInfect function.  adding run number as a parameter to infect sweep so we can track run number: ggilani - 15/10/14
+					InfectSweep_Count++;
 					auto c2 = clock();
 					InfectSweep_TimeAcc += c2 - c1;
+					if (c2 - c1 > InfectSweep_MaxTime)
+						InfectSweep_MaxTime = c2 - c1;
+					if (c2 - c1 < InfectSweep_MinTime)
+						InfectSweep_MinTime = c2 - c1;
+
 					//// IncubRecoverySweep loops over all infecteds (either latent or infectious). If t is the right time, latent people moved to being infected, and infectious people moved to being clinical cases. Possibly also add them to recoveries or deaths. Add them to hospitalisation & hospitalisation discharge queues.
 					if (!P.DoSI) 
 					{
