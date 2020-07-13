@@ -126,6 +126,16 @@ const double ICDF_START = 100.0;
 
 void GetInverseCdf(FILE* param_file_dat, FILE* preparam_file_dat, const char* icdf_name, InverseCdf* inverseCdf, double start_value = ICDF_START);
 
+// Lei Fu 2020/7/13 - accumulate running time for each funciton in Sweep.cpp
+int TravelReturnSweep_TimeAcc = 0;
+int InfectSweep_TimeAcc = 0;
+int TravelDepartSweep_TimeAcc = 0;
+int IncubRecoverySweep_TimeAcc = 0;
+int DigitalContactTracingSweep_TimeAcc = 0;
+int TreatSweep_TimeAcc = 0;
+
+
+
 int main(int argc, char* argv[])
 {
 	///// Flags to ensure various parameters have been read; set to false as default.
@@ -412,6 +422,15 @@ int main(int argc, char* argv[])
 
 			fprintf(stderr, "Extinction in %i out of %i runs\n", P.NRactE, P.NRactNE + P.NRactE);
 			fprintf(stderr, "Model ran in %lf seconds\n", ((double)(clock() - cl)) / CLOCKS_PER_SEC);
+
+			// Lei Fu 2020/7/13 - Calculate running for each function in Sweep.cpp
+			fprintf(stderr, "TravelReturnSweep occupied %lf seconds\n", ((double)TravelReturnSweep_TimeAcc) / CLOCKS_PER_SEC);
+			fprintf(stderr, "InfectSweep occupied %lf seconds\n", ((double)InfectSweep_TimeAcc) / CLOCKS_PER_SEC);
+			fprintf(stderr, "TravelDepartSweep occupied %lf seconds\n", ((double)TravelDepartSweep_TimeAcc) / CLOCKS_PER_SEC);
+			fprintf(stderr, "IncubRecoverySweep occupied %lf seconds\n", ((double)IncubRecoverySweep_TimeAcc) / CLOCKS_PER_SEC);
+			fprintf(stderr, "DigitalContactTracingSweep occupied %lf seconds\n", ((double)DigitalContactTracingSweep_TimeAcc) / CLOCKS_PER_SEC);
+			fprintf(stderr, "TreatSweep occupied %lf seconds\n", ((double)TreatSweep_TimeAcc) / CLOCKS_PER_SEC);
+
 			fprintf(stderr, "Model finished\n");
 		}
 	}
@@ -3059,7 +3078,13 @@ int RunModel(int run, std::string const& snapshot_save_file, std::string const& 
 
 				if (fs)
 				{
-					if (P.DoAirports) TravelDepartSweep(t);
+					if (P.DoAirports) 
+					{
+						auto c1 = clock();
+						TravelDepartSweep(t);
+						auto c2 = clock();
+						TravelDepartSweep_TimeAcc += c2 - c1;
+					}
 					k = (int)t;
 					if (P.DurImportTimeProfile > 0)
 					{
@@ -3089,20 +3114,44 @@ int RunModel(int run, std::string const& snapshot_save_file, std::string const& 
 							}
 						}
 					}
+					auto c1 = clock();
 					InfectSweep(t, run);  // loops over all infectious people and decides which susceptible people to infect (at household, place and spatial level), and adds them to queue. Then changes each person's various characteristics using DoInfect function.  adding run number as a parameter to infect sweep so we can track run number: ggilani - 15/10/14
+					auto c2 = clock();
+					InfectSweep_TimeAcc += c2 - c1;
 					//// IncubRecoverySweep loops over all infecteds (either latent or infectious). If t is the right time, latent people moved to being infected, and infectious people moved to being clinical cases. Possibly also add them to recoveries or deaths. Add them to hospitalisation & hospitalisation discharge queues.
-					if (!P.DoSI) IncubRecoverySweep(t, run);
+					if (!P.DoSI) 
+					{
+						auto c1 = clock();
+						IncubRecoverySweep(t, run);
+						auto c2 = clock();
+						IncubRecoverySweep_TimeAcc += c2 - c1;
+					}
 					// If doing new contact tracing, update numbers of people under contact tracing after each time step
 
-					if (P.DoDigitalContactTracing) DigitalContactTracingSweep(t);
+					if (P.DoDigitalContactTracing) 
+					{
+						auto c1 = clock();
+						DigitalContactTracingSweep(t);
+						auto c2 = clock();
+						DigitalContactTracingSweep_TimeAcc += c2 - c1;
+					}
 
 					fs2 = ((P.DoDeath) || (State.L + State.I > 0) || (ir > 0) || (P.FalsePositivePerCapitaIncidence > 0));
 					///// TreatSweep loops over microcells to decide which cells are treated (either with treatment, vaccine, social distancing, movement restrictions etc.). Calls DoVacc, DoPlaceClose, DoProphNoDelay etc. to change (threaded) State variables
+					auto c3 = clock();
 					if (!TreatSweep(t))
 					{
+						auto c4 = clock();
+						TreatSweep_TimeAcc += c4 - c3;
 						if ((!fs2) && (State.L + State.I == 0) && (P.FalsePositivePerCapitaIncidence == 0)) { if ((ir == 0) && (((int)t) > P.DurImportTimeProfile)) fs = 0; }
 					}
-					if (P.DoAirports) TravelReturnSweep(t);
+					if (P.DoAirports) 
+					{
+						auto c1 = clock();
+						TravelReturnSweep(t);
+						auto c2 = clock();
+						TravelReturnSweep_TimeAcc += c2 - c1;
+					}
 					UpdateHostClosure();
 				}
 				t += P.TimeStep;
@@ -3126,7 +3175,10 @@ int RunModel(int run, std::string const& snapshot_save_file, std::string const& 
 //	if(!InterruptRun)
 	while (fs)
 	{
+		auto c1 = clock();
 		fs = TreatSweep(t2);
+		auto c2 = clock();
+		TreatSweep_TimeAcc += c2 - c1;
 		t2 += P.SampleStep;
 	}
 	//	fprintf(stderr,"End RunModel\n");
@@ -3134,7 +3186,12 @@ int RunModel(int run, std::string const& snapshot_save_file, std::string const& 
 	{
 		t2 = t;
 		for (t2 = t; t2 <= t + MAX_TRAVEL_TIME; t2 += P.TimeStep)
+		{
+			int c1 = clock();
 			TravelReturnSweep(t2);
+			int c2 = clock();
+			TravelReturnSweep_TimeAcc += c2 - c1;
+		}
 	}
 /*	if (!InterruptRun)
 	{
