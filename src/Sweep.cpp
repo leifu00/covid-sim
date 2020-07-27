@@ -321,7 +321,7 @@ void InfectSweep(double t, int run) //added run number as argument in order to r
 #pragma omp parallel for private(n,f,f2,s,s2,s3,s4,s5,s6,cq,ci,s3_scaled,s4_scaled) schedule(static,1) default(none) \
 		shared(t, P, CellLookup, Hosts, AdUnits, Households, Places, SamplingQueue, Cells, Mcells, StateT, hbeta, sbeta, seasonality, ts, fp, bm, stderr_shared)
 	for (int tn = 0; tn < P.NumThreads; tn++)
-		for (int b = tn; b < P.NCP; b += P.NumThreads) //// loop over (in parallel) all populated cells. Loop 1)
+		for (int b = tn; b < P.NCP; b += P.NumThreads) //// loop over (in parallel) all populated quitcells. Loop 1)
 		{
 			Cell* c = CellLookup[b]; // select Cell given by index b
 			s5 = 0; ///// spatial infectiousness summed over all infectious people in loop below
@@ -365,21 +365,33 @@ void InfectSweep(double t, int run) //added run number as argument in order to r
 						// then scaling by hbeta
 						s3 = hbeta * CalcHouseInf(ci, ts);  
 
+
 						// Test if any of the individuals in the selected persons household are absent from places
 						// f=0 means noone absent, f=1 means at least one absent
-						f = 0; // initialise f to be 0
-						for (int i3 = l; (i3 < m) && (!f); i3++){ //// loop over people in household
-							for (int i2 = 0; (i2 < P.PlaceTypeNum) && (!f); i2++){ //// loop over place types
-								if (Hosts[i3].PlaceLinks[i2] >= 0){ //// if person in household has any sort of link to place type
-									// if person is absent set f=1
-									f = ((PLACE_CLOSED(i2, Hosts[i3].PlaceLinks[i2]))&&(HOST_ABSENT(i3)));
-								}
-							}
-						}
-
-						// if individuals in the household are absent from places (ie. f==1 from test immediately above), scale up the infectiousness (s3) of the household
-						if (f) { s3 *= P.PlaceCloseHouseholdRelContact; }/* NumPCD++;}*/ //// if people in your household are absent from places, person si/ci is more infectious to them, as they spend more time at home.
 						
+						/* Commented out Lei Fu 27/07/2020 */
+
+						// f = 0; // initialise f to be 0
+						// for (int i3 = l; (i3 < m) && (!f); i3++){ //// loop over people in household
+						// 	for (int i2 = 0; (i2 < P.PlaceTypeNum) && (!f); i2++){ //// loop over place types
+						// 		if (Hosts[i3].PlaceLinks[i2] >= 0){ //// if person in household has any sort of link to place type
+						// 			// if person is absent set f=1
+						// 			f = ((PLACE_CLOSED(i2, Hosts[i3].PlaceLinks[i2]))&&(HOST_ABSENT(i3)));
+						// 		}
+						// 	}
+						// }
+
+						/* Commented out Lei Fu 27/07/2020 */
+
+					
+						// if individuals in the household are absent from places (ie. f==1 from test immediately above), scale up the infectiousness (s3) of the household
+						
+						/* Commented out Lei Fu 27/07/2020 */
+
+						// if (f) { s3 *= P.PlaceCloseHouseholdRelContact; }/* NumPCD++;}*/ //// if people in your household are absent from places, person si/ci is more infectious to them, as they spend more time at home.
+						
+						/* Commented out Lei Fu 27/07/2020 */
+
 						// Loop from l (the index of the first person in the household) to m-1 (the index of the last person in the household)
 						// ie. loop over everyone in the household
 						for (int i3 = l; i3 < m; i3++) //// loop over all people in household (note goes from l to m - 1)
